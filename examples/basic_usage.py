@@ -28,4 +28,28 @@ def main():
     print(f"Output will be saved to: {output_path}")
 
     # Create output directory if it doesn't exist
-    os.makedirs(os.path.dirname(os.path
+    os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+
+    # Initialize MiFlow with default parameters
+    stabilizer = MiFlow(
+        use_depth=True,           # Use depth information
+        smooth_radius=30,         # Radius for Gaussian smoothing
+        smooth_strength=25,       # Smoothing strength
+        crop_ratio=0.95,          # Crop ratio to remove borders
+        verbose=True              # Print progress information
+    )
+
+    # Process video
+    stabilizer.process_video(
+        input_path=input_path,
+        output_path=output_path,
+        preview=True              # Show preview during processing
+    )
+
+    # Plot trajectories
+    trajectories_path = os.path.join(os.path.dirname(output_path), f"{name}_trajectories.png")
+    stabilizer.plot_trajectories(trajectories_path)
+
+
+if __name__ == "__main__":
+    main()
