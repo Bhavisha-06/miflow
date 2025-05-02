@@ -1,0 +1,12 @@
+version: '3'
+
+services:
+  miflow:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./input:/data/input
+      - ./output:/data/output
+    # Example command to run (can be overridden when running docker-compose)
+    command: /data/input/video.mp4 -o /data/output/video_stabilized.mp4 --preview
