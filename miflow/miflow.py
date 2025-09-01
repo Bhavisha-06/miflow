@@ -76,12 +76,35 @@ class MiDaSModel(nn.Module):
 
         return prediction
 
+class TrajectoryTransformer(nn.Module):
+    """Lightweight Transformer for temporal trajectory smoothing"""
+
+    def __init__(self, d_model=32, nhead=2, num_layers=2):
+        super().__init__()
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=d_model, nhead=nhead, dim_feedforward=64, dropout=0.1
+        )
+        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+        self.input_proj = nn.Linear(2, d_model)
+        self.output_proj = nn.Linear(d_model, 2)
+
+    def forward(self, traj):
+        inp = self.input_proj(traj).unsqueeze(1)   # [T, 1, d_model]
+        out = self.transformer(inp).squeeze(1)     # [T, d_model]
+        return self.output_proj(out)               # [T, 2]
+        
 
 class MiFlow:
     """MiFlow video stabilizer using optical flow and depth estimation"""
 
-    def __init__(self, use_depth=True, smooth_radius=30, smooth_strength=25,
-                 crop_ratio=0.9, midas_weights_path=None, verbose=False):
+    def __init__(self, use_depth=True,
+                 crop_ratio=0.9,
+                 midas_weights_path=None,
+                 depth_beta=0.7,
+                 transformer_layers=2,
+                 transformer_heads=2,
+                 transformer_dim=32,
+                 verbose=False):
         """
         Initialize MiFlow video stabilizer
 
@@ -94,16 +117,27 @@ class MiFlow:
             verbose (bool): Print additional information
         """
         self.use_depth = use_depth
-        self.smooth_radius = smooth_radius
-        self.smooth_strength = smooth_strength
         self.crop_ratio = crop_ratio
         self.verbose = verbose
-
-        # Initialize trajectories
+        self.prev_depth = None
+        self.depth_beta = depth_beta
         self.trajectories = {'x': [], 'y': []}
         self.smoothed_trajectories = {'x': [], 'y': []}
         self.prev_gray = None
         self.frame_shape = None
+
+        """# Initialize trajectories
+        self.trajectories = {'x': [], 'y': []}
+        self.smoothed_trajectories = {'x': [], 'y': []}
+        self.prev_gray = None
+        self.frame_shape = None"""
+
+        # Transformer for smoothing
+        self.transformer = TrajectoryTransformer(
+            d_model=transformer_dim,
+            nhead=transformer_heads,
+            num_layers=transformer_layers
+        )
 
         # Initialize MiDaS model if depth is used
         if self.use_depth:
@@ -183,34 +217,17 @@ class MiFlow:
         self.trajectories['y'].append(dy)
 
     def _smooth_trajectory(self):
-        """Apply Gaussian smoothing to trajectories"""
-        # Create cumulative trajectories from individual motions
+        """Smooth trajectories using transformer"""
         cum_x = np.cumsum(self.trajectories['x'])
         cum_y = np.cumsum(self.trajectories['y'])
+        traj = np.stack([cum_x, cum_y], axis=1)  # [T, 2]
 
-        # Define Gaussian kernel
-        radius = self.smooth_radius
-        sigma = self.smooth_strength
+        # Convert to tensor
+        traj_tensor = torch.tensor(traj, dtype=torch.float32).to(self.transformer.output_proj.weight.device)
+        with torch.no_grad():
+            smoothed = self.transformer(traj_tensor).cpu().numpy()
 
-        # Ensure radius is odd
-        if radius % 2 == 0:
-            radius += 1
-
-        # Create kernel
-        kernel = cv2.getGaussianKernel(radius, sigma)
-        kernel_1d = kernel.flatten()
-
-        # Apply convolution for smoothing
-        smoothed_x = cv2.filter2D(cum_x.reshape(-1, 1), -1, kernel_1d).flatten()
-        smoothed_y = cv2.filter2D(cum_y.reshape(-1, 1), -1, kernel_1d).flatten()
-
-        # Handle edges
-        half_radius = radius // 2
-        smoothed_x[:half_radius] = cum_x[:half_radius]
-        smoothed_y[:half_radius] = cum_y[:half_radius]
-        smoothed_x[-half_radius:] = cum_x[-half_radius:]
-        smoothed_y[-half_radius:] = cum_y[-half_radius:]
-
+        smoothed_x, smoothed_y = smoothed[:, 0], smoothed[:, 1]
         return smoothed_x, smoothed_y
 
     def _compute_transforms(self):
