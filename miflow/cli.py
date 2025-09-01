@@ -27,17 +27,23 @@ def parse_args():
     parser.add_argument("--no-depth", action="store_true", 
                         help="Disable depth information (faster but less accurate)")
     
-    parser.add_argument("--smooth-radius", type=int, default=30,
-                        help="Radius for Gaussian smoothing window")
-    
-    parser.add_argument("--smooth-strength", type=int, default=25,
-                        help="Strength of smoothing (σ of Gaussian)")
-    
-    parser.add_argument("--crop-ratio", type=float, default=0.95,
+    parser.add_argument("--crop-ratio", type=float, default=0.9,
                         help="Crop ratio to remove borders (0-1)")
     
     parser.add_argument("--midas-weights", 
                         help="Path to custom MiDaS model weights")
+    
+    parser.add_argument("--depth-beta", type=float, default=0.7,
+                        help="Weight factor for combining depth and flow")
+    
+    parser.add_argument("--transformer-layers", type=int, default=2,
+                        help="Number of transformer encoder layers for trajectory smoothing")
+    
+    parser.add_argument("--transformer-heads", type=int, default=2,
+                        help="Number of attention heads in the transformer")
+    
+    parser.add_argument("--transformer-dim", type=int, default=32,
+                        help="Embedding dimension for transformer model")
     
     parser.add_argument("--preview", action="store_true",
                         help="Show preview during processing")
@@ -75,18 +81,20 @@ def main():
         print(f"Input video: {args.input}")
         print(f"Output will be saved to: {args.output}")
         print(f"Using depth: {not args.no_depth}")
-        print(f"Smooth radius: {args.smooth_radius}")
-        print(f"Smooth strength: {args.smooth_strength}")
         print(f"Crop ratio: {args.crop_ratio}")
+        print(f"Depth beta: {args.depth_beta}")
+        print(f"Transformer: {args.transformer_layers} layers, {args.transformer_heads} heads, dim={args.transformer_dim}")
 
     try:
         # Initialize MiFlow
         miflow = MiFlow(
             use_depth=not args.no_depth,
-            smooth_radius=args.smooth_radius,
-            smooth_strength=args.smooth_strength,
             crop_ratio=args.crop_ratio,
             midas_weights_path=args.midas_weights,
+            depth_beta=args.depth_beta,
+            transformer_layers=args.transformer_layers,
+            transformer_heads=args.transformer_heads,
+            transformer_dim=args.transformer_dim,
             verbose=not args.quiet
         )
     except Exception as e:
