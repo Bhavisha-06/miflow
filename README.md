@@ -9,6 +9,7 @@ MiFlow is a Python Framework for video stabilization that combines optical flow 
 
 - Video stabilization using optical flow
 - Depth-enhanced motion estimation (using MiDaS depth model)
+- Transformer-based trajectory smoothing
 - Customizable smoothing parameters
 - Live preview during processing
 - Trajectory visualization
@@ -61,7 +62,7 @@ miflow input_video.mp4 --preview
 miflow input_video.mp4 --plot
 
 # Full options
-miflow input_video.mp4 -o output_video.mp4 --smooth-radius 30 --smooth-strength 25 --crop-ratio 0.95 --preview --plot
+miflow input_video.mp4 -o output_video.mp4 --crop-ratio 0.9 --depth-beta 0.7 --preview --plot
 ```
 
 ### Python API
@@ -72,9 +73,11 @@ from miflow import MiFlow
 # Initialize the stabilizer
 stabilizer = MiFlow(
     use_depth=True,           # Use depth information
-    smooth_radius=30,         # Radius for Gaussian smoothing
-    smooth_strength=25,       # Smoothing strength
-    crop_ratio=0.95,          # Crop ratio to remove borders
+    crop_ratio=0.9,           # Crop ratio to remove borders
+    depth_beta=0.7,           # Depth weighting factor
+    transformer_layers=2,     # Number of transformer layers
+    transformer_heads=2,      # Number of attention heads
+    transformer_dim=32,       # Transformer dimension
     verbose=True              # Print progress information
 )
 
@@ -91,12 +94,13 @@ stabilizer.plot_trajectories("trajectories.png")
 
 ## Parameters
 
-- **use_depth**: Whether to use depth information for stabilization (default: True)
-- **smooth_radius**: Radius for Gaussian smoothing window (default: 30)
-- **smooth_strength**: Strength of smoothing (σ of Gaussian) (default: 25)
-- **crop_ratio**: Crop ratio to remove borders - lower values crop more (default: 0.95)
-- **midas_weights_path**: Path to custom MiDaS model weights (default: None - use built-in weights)
-- **verbose**: Print progress information (default: False)
+**use_depth**: Whether to use depth information for stabilization (default: True)
+**depth_beta**: Weighting factor for depth-based flow weighting (default: 0.7)
+**transformer_layers**: Number of transformer encoder layers for trajectory smoothing (default: 2)
+**transformer_heads**: Number of attention heads in transformer (default: 2)
+**transformer_dim**: Dimension of transformer model (default: 32)
+**midas_weights_path**: Path to custom MiDaS model weights (default: None - use built-in weights)
+**verbose**: Print progress information (default: False)
 
 ## Examples
 
@@ -123,12 +127,12 @@ miflow shaky_video.mp4 -o stable_video.mp4 --preview --plot
 MiFlow works in two passes:
 
 1. **Motion Analysis**:
-   - Calculate optical flow between consecutive frames
+   - Calculate optical flow between consecutive frames using Farneback method
    - Weight motion vectors by depth information (if enabled)
    - Construct trajectory of camera movement
 
 2. **Stabilization**:
-   - Apply Gaussian smoothing to trajectory
+   - Apply Transformer-based temporal smoothing to trajectory
    - Generate transformation matrices
    - Apply transformations to frames
    - Crop borders to remove empty regions
