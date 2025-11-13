@@ -5,6 +5,12 @@ MiFlow is a Python Framework for video stabilization that combines optical flow 
 ## Demo
 ![MiFlow Demo](assets/video_collage.gif)
 
+## Paper
+
+Our work was accepted at CVMI 2025. You can read the paper [here](assets/FlowDepthFormer.pdf).
+
+**Note**: This paper was accepted but not presented at the conference, and therefore was not officially published in the proceedings.
+
 ## Features
 
 - Video stabilization using optical flow
