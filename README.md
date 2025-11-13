@@ -3,7 +3,10 @@
 MiFlow is a Python Framework for video stabilization that combines optical flow with depth estimation using MiDaS to achieve smoother and more natural stabilization results. 
 
 ## Demo
-![MiFlow Demo](assets/video_collage.gif)
+<p align="center">
+  <img src="assets/video_collage.gif" alt="MiFlow Demo" width="49%">
+  <img src="assets/trajectory.png" alt="Trajectory Plot" width="49%">
+</p>
 
 ## Paper
 
